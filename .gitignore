@@ -1,0 +1,25 @@
+# Python bytecode/compiled
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Tests and Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Databases
+*.db
+*.sqlite
+
+# Logs
+*.log
+
+# Environment/Configuration
+.env
+venv/
+.venv/
+
+# Verification outputs
+verification/

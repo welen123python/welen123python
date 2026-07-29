@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SureBet Sports Arbitrage System</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <span class="text-3xl">🎯</span>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-teal-400 to-emerald-400 bg-clip-text text-transparent">
+                        SureBet System
+                    </h1>
+                    <p class="text-xs text-slate-400">Automated Sports Arbitrage Detector</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span id="ws-status" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-400/10 text-red-400 border border-red-400/20">
+                    <span class="w-1.5 h-1.5 mr-1.5 rounded-full bg-red-400 animate-pulse"></span>
+                    Disconnected
+                </span>
+                <span class="text-sm text-slate-400">Status: <strong class="text-teal-400">Active</strong></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        <!-- Status Panel Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Summary Stats -->
+            <div class="bg-slate-950/50 border border-slate-800 rounded-2xl p-6">
+                <p class="text-sm font-medium text-slate-400">Total Scraped Bookmakers</p>
+                <div class="mt-2 flex items-baseline justify-between">
+                    <span class="text-4xl font-extrabold text-teal-400">6</span>
+                    <span class="text-xs text-slate-400">Active (Bet365, Betano, Betfair, Pinnacle, 1xBet, Sportingbet)</span>
+                </div>
+            </div>
+
+            <div class="bg-slate-950/50 border border-slate-800 rounded-2xl p-6">
+                <p class="text-sm font-medium text-slate-400">Active Opportunities</p>
+                <div class="mt-2 flex items-baseline justify-between">
+                    <span id="active-count" class="text-4xl font-extrabold text-amber-400">{{ surebets|length }}</span>
+                    <span class="text-xs text-slate-400">Calculated in real-time</span>
+                </div>
+            </div>
+
+            <div class="bg-slate-950/50 border border-slate-800 rounded-2xl p-6">
+                <p class="text-sm font-medium text-slate-400">Live Socket Updates</p>
+                <div class="mt-2 flex items-baseline justify-between">
+                    <span class="text-4xl font-extrabold text-emerald-400">ON</span>
+                    <span class="text-xs text-slate-400">Subscribed to /ws endpoint</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+            <!-- Surebets Feed (Left 2 columns) -->
+            <div class="lg:col-span-2 space-y-6">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-2xl font-extrabold text-slate-100 flex items-center gap-2">
+                        <span>🔥</span> Identified Surebets
+                    </h2>
+                    <span class="text-xs bg-slate-800 px-3 py-1.5 rounded-lg text-slate-400">Updates every 60s automatically</span>
+                </div>
+
+                <!-- Feed Container -->
+                <div id="surebets-feed" class="space-y-4">
+                    {% if not surebets %}
+                    <div class="bg-slate-950/30 border border-dashed border-slate-800 rounded-2xl p-12 text-center text-slate-500">
+                        <span class="text-4xl">⏳</span>
+                        <p class="mt-2 font-medium">Waiting for arbitrage events...</p>
+                        <p class="text-xs text-slate-600 mt-1">Automatic scraping and math engine are running in the background.</p>
+                    </div>
+                    {% else %}
+                        {% for sb in surebets %}
+                        <div class="bg-slate-950/50 border border-slate-800 rounded-2xl p-6 hover:border-slate-700 transition duration-300 relative overflow-hidden">
+                            <div class="absolute top-0 right-0 bg-teal-500/10 border-l border-b border-teal-500/20 text-teal-400 font-bold px-4 py-1.5 rounded-bl-xl text-sm">
+                                ROI +{{ sb.roi }}%
+                            </div>
+
+                            <div class="flex items-center gap-2 text-xs text-slate-400 font-semibold uppercase tracking-wider">
+                                <span>⚽</span> <span>{{ sb.sport }}</span> &bull; <span>{{ sb.market_type }}</span>
+                            </div>
+
+                            <h3 class="text-lg font-bold text-white mt-2">
+                                {{ sb.home_team }} <span class="text-slate-500">vs</span> {{ sb.away_team }}
+                            </h3>
+
+                            <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-900/60 p-4 rounded-xl border border-slate-800/80">
+                                {% for outcome in sb.outcomes %}
+                                <div class="space-y-1">
+                                    <span class="text-xs text-slate-400 font-medium">{{ outcome.outcome_name }}</span>
+                                    <div class="flex items-baseline justify-between sm:block">
+                                        <div class="text-base font-bold text-white">{{ outcome.odd }}</div>
+                                        <div class="text-xs text-teal-400 font-semibold">{{ outcome.bookmaker }}</div>
+                                    </div>
+                                    <div class="text-xs text-slate-500 mt-1">
+                                        Suggested stake: <strong class="text-emerald-400">${{ outcome.stake }}</strong> ({{ outcome.pct }}%)
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Interactive Stake Sizer Widget -->
+                            <div class="mt-4 pt-4 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div class="flex items-center gap-2">
+                                    <label class="text-xs text-slate-400">Custom Investment ($):</label>
+                                    <input type="number" value="{{ default_investment }}"
+                                           oninput="recalculateStakes(this, {{ sb.arbitrage_percentage }}, {{ sb.outcomes|tojson }})"
+                                           class="w-24 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-sm text-teal-400 focus:outline-none focus:border-teal-500">
+                                </div>
+                                <div class="text-xs text-slate-400">
+                                    Net Profit: <strong class="text-emerald-400 font-bold calculated-profit" data-roi="{{ sb.roi }}">${{ (default_investment * (sb.roi / 100))|round(2) }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Notifications Log & Calculator Sidebar -->
+            <div class="space-y-6">
+                <!-- Live Alerts Widget -->
+                <div class="bg-slate-950/50 border border-slate-800 rounded-2xl p-6 space-y-4">
+                    <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2">
+                        <span>🔔</span> Real-Time Alerts
+                    </h3>
+                    <div id="alerts-log" class="space-y-3 max-h-[300px] overflow-y-auto pr-2 text-xs">
+                        {% if not notifications %}
+                        <p class="text-slate-500 text-center py-4">No recent alerts triggered.</p>
+                        {% else %}
+                            {% for notif in notifications %}
+                            <div class="p-3 bg-slate-900/50 border border-slate-800 rounded-xl">
+                                <p class="text-slate-300 font-medium leading-relaxed">{{ notif.message }}</p>
+                                <span class="text-[10px] text-slate-500 block mt-1">{{ notif.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+                            </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Custom Arbitrage Calculator -->
+                <div class="bg-slate-950/50 border border-slate-800 rounded-2xl p-6 space-y-4">
+                    <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2">
+                        <span>🧮</span> Standalone Calculator
+                    </h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Total Investment ($)</label>
+                            <input id="calc-investment" type="number" value="1000" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-teal-500">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-1">Odd 1 (Decimal)</label>
+                                <input id="calc-odd1" type="number" step="0.01" value="2.10" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-teal-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-1">Odd 2 (Decimal)</label>
+                                <input id="calc-odd2" type="number" step="0.01" value="2.15" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-teal-500">
+                            </div>
+                        </div>
+                        <button onclick="runCustomCalculator()" class="w-full py-2.5 bg-gradient-to-r from-teal-500 to-emerald-500 text-slate-950 font-bold rounded-xl hover:opacity-90 transition duration-300 text-sm">
+                            Calculate Stakes
+                        </button>
+                        <div id="calc-result" class="hidden p-4 bg-slate-900/60 border border-slate-800 rounded-xl text-xs space-y-2">
+                            <!-- Results inject here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800 bg-slate-950/50 py-6 mt-12 text-center text-xs text-slate-500">
+        <p>&copy; 2026 SureBet Systems Inc. Automated sport arbitrage identification software. All rights reserved.</p>
+    </footer>
+
+    <!-- Interactive script logic -->
+    <script>
+        // Custom interactive stake sizer function for dynamic live ROI
+        function recalculateStakes(input, arbPct, outcomes) {
+            const val = parseFloat(input.value) || 0;
+            const parent = input.closest('div').parentElement;
+            const profitEl = parent.querySelector('.calculated-profit');
+            const roi = parseFloat(profitEl.getAttribute('data-roi')) || 0;
+
+            // Update Net Profit
+            const netProfit = (val * (roi / 100)).toFixed(2);
+            profitEl.innerText = `$${netProfit}`;
+
+            // Update individual outcome suggested stakes inside HTML cards
+            const matchCard = input.closest('.bg-slate-950\\/50');
+            const stakeContainers = matchCard.querySelectorAll('.text-xs.text-slate-500.mt-1');
+
+            outcomes.forEach((outcome, idx) => {
+                if (stakeContainers[idx]) {
+                    const originalOdd = parseFloat(outcome.odd) || 0;
+                    const calculatedArbitrageDecimal = arbPct / 100;
+                    const individualStake = (val / (originalOdd * calculatedArbitrageDecimal)).toFixed(2);
+                    const percentage = ((individualStake / val) * 100).toFixed(2);
+
+                    stakeContainers[idx].innerHTML = `Suggested stake: <strong class="text-emerald-400">$${individualStake}</strong> (${percentage}%)`;
+                }
+            });
+        }
+
+        // Custom Calculator
+        function runCustomCalculator() {
+            const investment = parseFloat(document.getElementById('calc-investment').value) || 0;
+            const odd1 = parseFloat(document.getElementById('calc-odd1').value) || 0;
+            const odd2 = parseFloat(document.getElementById('calc-odd2').value) || 0;
+
+            const resDiv = document.getElementById('calc-result');
+            if (odd1 <= 0 || odd2 <= 0 || investment <= 0) {
+                resDiv.classList.remove('hidden');
+                resDiv.innerHTML = `<p class="text-red-400">Please provide valid entries greater than 0.</p>`;
+                return;
+            }
+
+            const arbPct = (1.0 / odd1) + (1.0 / odd2);
+            const isSurebet = arbPct < 1.0;
+            const roi = (1.0 / arbPct) - 1.0;
+
+            // Calc stakes
+            const s1 = (investment / (odd1 * arbPct)).toFixed(2);
+            const s2 = (investment / (odd2 * arbPct)).toFixed(2);
+            const payout = (investment * (1.0 / arbPct)).toFixed(2);
+            const netProfit = (payout - investment).toFixed(2);
+
+            resDiv.classList.remove('hidden');
+            resDiv.innerHTML = `
+                <div class="flex items-center justify-between font-bold border-b border-slate-800 pb-2 mb-2 ${isSurebet ? 'text-emerald-400' : 'text-amber-400'}">
+                    <span>${isSurebet ? '✅ Arbitrage Found!' : '⚠️ No Arbitrage'}</span>
+                    <span>ROI: ${(roi * 100).toFixed(2)}%</span>
+                </div>
+                <p>Arbitrage Percentage: <strong> ${(arbPct * 100).toFixed(2)}%</strong></p>
+                <div class="space-y-1 mt-2">
+                    <p>Bet 1 (Odd ${odd1}): <strong>$${s1}</strong> (${((s1/investment)*100).toFixed(1)}%)</p>
+                    <p>Bet 2 (Odd ${odd2}): <strong>$${s2}</strong> (${((s2/investment)*100).toFixed(1)}%)</p>
+                </div>
+                <div class="pt-2 border-t border-slate-800 mt-2">
+                    <p>Expected Payout: <strong>$${payout}</strong></p>
+                    <p class="text-emerald-400">Net Profit: <strong>$${netProfit}</strong></p>
+                </div>
+            `;
+        }
+
+        // Setup WebSocket Live Updates
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+        const wsStatusEl = document.getElementById('ws-status');
+
+        function connectWebSocket() {
+            const ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                wsStatusEl.className = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-400/10 text-emerald-400 border border-emerald-400/20";
+                wsStatusEl.innerHTML = `
+                    <span class="w-1.5 h-1.5 mr-1.5 rounded-full bg-emerald-400"></span>
+                    Connected
+                `;
+                console.log("WebSocket connected successfully.");
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                console.log("WebSocket alert received:", data);
+
+                // Add real-time visual alert block on the feed if it's new
+                const feed = document.getElementById('surebets-feed');
+
+                // Clear wait element if it exists
+                const placeholder = feed.querySelector('.border-dashed');
+                if (placeholder) {
+                    placeholder.remove();
+                }
+
+                // Append new card or replace
+                const newCard = document.createElement('div');
+                newCard.className = "bg-slate-950/50 border border-teal-500/50 rounded-2xl p-6 hover:border-teal-400 transition duration-300 relative overflow-hidden animate-pulse";
+                setTimeout(() => {
+                    newCard.classList.remove('animate-pulse');
+                    newCard.className = "bg-slate-950/50 border border-slate-800 rounded-2xl p-6 hover:border-slate-700 transition duration-300 relative overflow-hidden";
+                }, 3000);
+
+                let outcomesHtml = '';
+                data.outcomes.forEach(out => {
+                    outcomesHtml += `
+                        <div class="space-y-1">
+                            <span class="text-xs text-slate-400 font-medium">${out.outcome_name}</span>
+                            <div class="flex items-baseline justify-between sm:block">
+                                <div class="text-base font-bold text-white">${out.odd}</div>
+                                <div class="text-xs text-teal-400 font-semibold">${out.bookmaker}</div>
+                            </div>
+                            <div class="text-xs text-slate-500 mt-1">
+                                Suggested stake: <strong class="text-emerald-400">$${out.stake}</strong> (${out.pct}%)
+                            </div>
+                        </div>
+                    `;
+                });
+
+                newCard.innerHTML = `
+                    <div class="absolute top-0 right-0 bg-teal-500/10 border-l border-b border-teal-500/20 text-teal-400 font-bold px-4 py-1.5 rounded-bl-xl text-sm">
+                        ROI +${data.roi}%
+                    </div>
+                    <div class="flex items-center gap-2 text-xs text-slate-400 font-semibold uppercase tracking-wider">
+                        <span>⚽</span> <span>${data.sport}</span> &bull; <span>${data.market_type}</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mt-2">
+                        ${data.event}
+                    </h3>
+                    <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-900/60 p-4 rounded-xl border border-slate-800/80">
+                        ${outcomesHtml}
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs text-slate-400">Custom Investment ($):</label>
+                            <input type="number" value="1000"
+                                   oninput='recalculateStakes(this, ${data.arbitrage_percentage}, ${JSON.stringify(data.outcomes)})'
+                                   class="w-24 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-sm text-teal-400 focus:outline-none focus:border-teal-500">
+                        </div>
+                        <div class="text-xs text-slate-400">
+                            Net Profit: <strong class="text-emerald-400 font-bold calculated-profit" data-roi="${data.roi}">$${data.net_profit}</strong>
+                        </div>
+                    </div>
+                `;
+
+                // Add to start of feed
+                feed.insertBefore(newCard, feed.firstChild);
+
+                // Update active count
+                const countEl = document.getElementById('active-count');
+                const countVal = parseInt(countEl.innerText) || 0;
+                countEl.innerText = countVal + 1;
+
+                // Also prepend to alert log
+                const log = document.getElementById('alerts-log');
+                const pEl = log.querySelector('p');
+                if (pEl) {
+                    pEl.remove();
+                }
+
+                const newAlert = document.createElement('div');
+                newAlert.className = "p-3 bg-slate-900/50 border border-slate-800 rounded-xl border-l-4 border-l-teal-500";
+                newAlert.innerHTML = `
+                    <p class="text-slate-300 font-medium leading-relaxed">${data.message}</p>
+                    <span class="text-[10px] text-slate-500 block mt-1">${data.timestamp}</span>
+                `;
+                log.insertBefore(newAlert, log.firstChild);
+            };
+
+            ws.onclose = () => {
+                wsStatusEl.className = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-400/10 text-red-400 border border-red-400/20";
+                wsStatusEl.innerHTML = `
+                    <span class="w-1.5 h-1.5 mr-1.5 rounded-full bg-red-400 animate-pulse"></span>
+                    Disconnected
+                `;
+                console.log("WebSocket connection closed. Retrying in 5 seconds...");
+                setTimeout(connectWebSocket, 5000);
+            };
+
+            ws.onerror = (err) => {
+                console.error("WebSocket error:", err);
+            };
+        }
+
+        // Trigger socket connection
+        connectWebSocket();
+    </script>
+</body>
+</html>
